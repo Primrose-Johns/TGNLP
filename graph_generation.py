@@ -322,38 +322,38 @@ def sliding_window(corpus, window_size):
 ####Normaliztion Code######################
 ###########################################
 def trim_norm_graph(G_full, trim = 0.1):
-  G = deepcopy(G_full)
-  #Triming portion
-  #this just gets us a list of weights
-  weights = [e[2]["weight"] for e in list(G.edges(data=True))]
-  #print(weights[:10])
-  #simple integral (no width of rectangle needs to be considered)
-  auc = sum(weights)
-  trim_amount = auc*trim
-  trimmed = 0
-  #get the edges in ascending order of weight
-  edges = sorted(G.edges(data=True), key=lambda val : val[2]["weight"])
-  #remove nodes until trim_amount of weights have been removed
-  for a, b, d in edges:
-    weight = d["weight"]
-    if trimmed+weight < trim_amount:
-      G.remove_edge(a, b)
-      trimmed += weight
-    else:
-      break
+    G = deepcopy(G_full)    
+    #scaling portion, this will normalize the values between 0 and 1
+    #we have to rerun these now that edges have been removed
+    weights = [e[2]["weight"] for e in list(G.edges(data=True))]
+    weights = np.array(weights).reshape(-1, 1)
+    edges = sorted(G.edges(data=True), key=lambda val : val[2]["weight"])
+    scaler = MinMaxScaler()
+    scaler.fit(weights)
+    for a, b, d in edges:
+        weight = np.array(d["weight"]).reshape(-1, 1)
+        new_weight = scaler.transform(weight)
+        G[a][b]["weight"] = new_weight[0][0]
 
-  #scaling portion, this will normalize the values between 0 and 1
-  #we have to rerun these now that edges have been removed
-  weights = [e[2]["weight"] for e in list(G.edges(data=True))]
-  weights = np.array(weights).reshape(-1, 1)
-  edges = sorted(G.edges(data=True), key=lambda val : val[2]["weight"])
-  scaler = MinMaxScaler()
-  scaler.fit(weights)
-  for a, b, d in edges:
-    weight = np.array(d["weight"]).reshape(-1, 1)
-    new_weight = scaler.transform(weight)
-    G[a][b]["weight"] = new_weight[0][0]
-  return G
+    #Triming portion
+    #this just gets us a list of weights
+    weights = [e[2]["weight"] for e in list(G.edges(data=True))]
+    #print(weights[:10])
+    #simple integral (no width of rectangle needs to be considered)
+    auc = sum(weights)
+    trim_amount = auc*trim
+    trimmed = 0
+    #get the edges in ascending order of weight
+    edges = sorted(G.edges(data=True), key=lambda val : val[2]["weight"])
+    #remove nodes until trim_amount of weights have been removed
+    for a, b, d in edges:
+        weight = d["weight"]
+        if trimmed+weight < trim_amount:
+            G.remove_edge(a, b)
+            trimmed += weight
+        else:
+            break
+    return G
 
 if __name__ == '__main__':
     #load in bbc dataset

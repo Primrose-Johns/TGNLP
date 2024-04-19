@@ -68,15 +68,17 @@ def data_to_corpus(data_raw, corpus_type='word'):
     #make all lowercase
     data = data.lower()
 
+
     if corpus_type == 'sentence':
-        #using sent tokenize nltk algorithm to split sentences, has different output than splitting on . deals with examples such as not ending sentence when file extension is mentioned
+        #split into sentences with nltk
         sentences = sent_tokenize(data)
 
-        #remove punctuation
-        sentences = [re.sub("[^A-Za-z ]", "",sentence) for sentence in sentences]
+        #remove "." from all sentences
+        sentences = [re.sub("[^A-Za-z ]", "",sentence) for sentence in sentences]   
         return sentences
-    elif corpus_type == 'word':
-        return data.split(' ') #return as list of words
+    elif corpus_type == 'word':    
+        return data.split(' ')
+    
     
 
 #due to how this function is used, it assumes what is passed to it is a list
@@ -110,9 +112,9 @@ def syn_corpus_preprocessing(data):
     sentence_corpus = data_to_corpus(data, 'sentence')
 
     #preprocess data to one large string
-    count_data  = data_to_corpus(data, 'word')
+    word_corpus  = data_to_corpus(data, 'word')
 
-    word_counts = get_word_counts(count_data)
+    word_counts = get_word_counts(word_corpus)
 
     return sentence_corpus, word_counts
 
@@ -134,15 +136,14 @@ def syntactic_pair_generation(data):
     
     rela_pair_count_str = {}
     for sentence in data:
-        #turn the sentence into list of one string, doing this to follow original format
-        words = sentence.split("\n")
+        if len(sentence) == 0:
+           continue
+
+        #turn the sentence into list of one string, necissary for parsing
+        words = [sentence]
+ 
         rela=[]
         for window in words:
-            if window==' ':
-                continue
-            #create rela pair count
-            window = window.replace(string.punctuation, ' ')
-
             #This call WILL NOT work with the standard corenlp library, the version used here has been modified. 
             #See the TensorGCN documentation for more info.
             res = nlp.dependency_parse(window)
@@ -154,8 +155,7 @@ def syntactic_pair_generation(data):
                     continue
                 if pair[0] == pair[1]:
                     continue
-                if pair[0] in string.punctuation or pair[1] in string.punctuation:
-                    continue
+
                 #not skipping stopwords because we want that for graph generation
 
                 word_pair_str = pair[0] + ',' + pair[1]
@@ -178,13 +178,15 @@ def syntactic_pair_generation(data):
 #turning syntatic pair values and word occurences into edge list
 def generate_syn_edgelist(syn_pair_dict, word_count_dict):
     edge_list = []
+
     for key, value in syn_pair_dict.items():
         pair_list = key.split(',')
-        
-        #making sure that the words are also in the word count dict before adding to edgelist, this should deal with any edge cases
+
+        #make sure words are in word count dictionary to take care of edge cases
         if pair_list[0] in word_count_dict and pair_list[1] in word_count_dict:
             norm_edgeweight = value/min(word_count_dict[pair_list[0]], word_count_dict[pair_list[1]])
             edge_list.append((pair_list[0],pair_list[1], norm_edgeweight))
+
 
     #TODO probably remove save of edgelist
     with open('syn_edge_list.txt', 'w') as file:
@@ -250,9 +252,14 @@ def generate_sem_edgelist(model, word_corpus, sentence_corpus, word_counts):
         similar = model.wv.most_similar(word1, topn = 50)
 
         #tuple of word and cosine similarity
-        for word_simularity in similar:
-            word2 = word_simularity[0]
-            norm_edgeweight = word_simularity[1]/(min(word_counts[word1], word_counts[word2]))
+        for word_similarity in similar:
+            word2 = word_similarity[0]
+
+            #word2vec can return empty string, need to make sure not to use
+            if len(word2) == 0:
+               continue
+
+            norm_edgeweight = word_similarity[1]/(min(word_counts[word1], word_counts[word2]))
             sem_edgelist.append((word1, word2, norm_edgeweight))
 
 
@@ -352,6 +359,8 @@ if __name__ == '__main__':
     #load in bbc dataset
     data = loadbbc()
 
+
+    #sequential graph generation
     corpus = data_to_corpus(data, 'word')
     word_counts = get_word_counts(corpus)
 
@@ -361,18 +370,14 @@ if __name__ == '__main__':
     stop = timeit.default_timer()
     print('Sequential graph generation time: ', stop - start)
     print(G1)
-
-    G1 = trim_norm_graph(G1)
-    print(G1)
+ 
 
 
-    
 
-    
+
     #syntatic graph generation
     #generate list of sentences and word count dictionary
     sentence_corpus, word_counts = syn_corpus_preprocessing(data)
-
 
     start = timeit.default_timer()
 
@@ -383,10 +388,11 @@ if __name__ == '__main__':
     print('Syntactic graph generation time: ', stop - start)
 
     print("syntactic graph", G2)
-    
-    
 
 
+
+
+ 
     #semantic graph generation
     start = timeit.default_timer()
 
@@ -397,8 +403,10 @@ if __name__ == '__main__':
     print('Semantic graph generation time: ', stop - start)
 
     print("semantic graph", G3)
-    
 
+
+
+ 
 
 
 

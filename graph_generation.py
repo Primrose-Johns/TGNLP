@@ -16,6 +16,9 @@ from itertools import combinations
 from copy import deepcopy
 from sklearn.preprocessing import MinMaxScaler
 import numpy as np
+from collections import defaultdict
+import spacy
+from spacy.tokens import Doc
 
 
 import nltk
@@ -64,7 +67,7 @@ def data_to_corpus(data_raw, corpus_type='word'):
         data = re.sub("[^A-Za-z ]", "", data)
 
     #remove padding
-    data = re.sub("\s+", " ", data)
+    data = re.sub("\s+", " ", data).strip()
     #make all lowercase
     data = data.lower()
 
@@ -122,85 +125,53 @@ def syn_corpus_preprocessing(data):
 #creates the graph from preprocessed data
 def get_syntactic_graph(sentence_corpus, word_counts):
     
-    #get syntatic pairs then generate edge list
-    syntactic_pairs = syntactic_pair_generation(sentence_corpus)
-    edge_list = generate_syn_edgelist(syntactic_pairs, word_counts) 
+    #get syntactic pair edge list
+    edge_dict = syntactic_pair_generation(sentence_corpus)
 
-    #return syntactic graph
-    return syn_graph_generation(edge_list)
-
-
-
-def syntactic_pair_generation(data):
-    nlp = StanfordCoreNLP(r'stanford-corenlp-full-2016-10-31', lang='en')
-    
-    rela_pair_count_str = {}
-    for sentence in data:
-        if len(sentence) == 0:
-           continue
-
-        #turn the sentence into list of one string, necissary for parsing
-        words = [sentence]
- 
-        rela=[]
-        for window in words:
-            #This call WILL NOT work with the standard corenlp library, the version used here has been modified. 
-            #See the TensorGCN documentation for more info.
-            res = nlp.dependency_parse(window)
-            for tuple in res:
-                rela.append(tuple[0] + ', ' + tuple[1])
-            for pair in rela:
-                pair=pair.split(", ")
-                if pair[0]=='ROOT' or pair[1]=='ROOT':
-                    continue
-                if pair[0] == pair[1]:
-                    continue
-
-                #not skipping stopwords because we want that for graph generation
-
-                word_pair_str = pair[0] + ',' + pair[1]
-                if word_pair_str in rela_pair_count_str:
-                    rela_pair_count_str[word_pair_str] += 1
-                else:
-                    rela_pair_count_str[word_pair_str] = 1
-                # two orders: "This adds the values to the dict that will be output"
-                word_pair_str = pair[1] + ',' + pair[0]
-                if word_pair_str in rela_pair_count_str:
-                    rela_pair_count_str[word_pair_str] += 1
-                else:
-                    rela_pair_count_str[word_pair_str] = 1
-
-    return rela_pair_count_str
+    return syn_graph_generation(edge_dict)
 
 
 
 
-#turning syntatic pair values and word occurences into edge list
-def generate_syn_edgelist(syn_pair_dict, word_count_dict):
-    edge_list = []
 
-    for key, value in syn_pair_dict.items():
-        pair_list = key.split(',')
+def syntactic_pair_generation(sentence_corpus):
+    #default dict so that checking if key exists is not necissary
+    edge_dict = defaultdict(int)
 
-        #make sure words are in word count dictionary to take care of edge cases
-        if pair_list[0] in word_count_dict and pair_list[1] in word_count_dict:
-            norm_edgeweight = value/min(word_count_dict[pair_list[0]], word_count_dict[pair_list[1]])
-            edge_list.append((pair_list[0],pair_list[1], norm_edgeweight))
+    #needs download python -m spacy download en_core_web_sm
+    nlp = spacy.load("en_core_web_sm")
+
+    #creating custom tokenizer because we already preprocessed corpus
+    def custom_tokenizer(text):
+      tokens = text.split()
+      return Doc(nlp.vocab, words=tokens)
+
+    nlp.tokenizer = custom_tokenizer
 
 
-    #TODO probably remove save of edgelist
-    with open('syn_edge_list.txt', 'w') as file:
-        for edge in edge_list:
-            file.write(f"{edge[0]}, {edge[1]}, {edge[2]}\n")
-
-    return edge_list
-
-#creating the networkx graph from edge list
-def syn_graph_generation(edge_list):
-    G = nx.Graph()
-    G.add_weighted_edges_from(edge_list)
-    return G
+    for sentence in sentence_corpus:
+       for word in nlp(sentence):
+          #takes care of root
+          if word.text == word.head.text:
+             continue
+          
+          #adding one weight for each syntactic dependcy, could further addd different weights depending on type of dependency
+          edge_dict[(word.text, word.head.text)] +=1
    
+
+    return edge_dict
+
+
+def syn_graph_generation(edge_dict):
+    #create graph
+    G = nx.Graph()
+    for (node1, node2), weight in edge_dict.items():
+      G.add_edge(node1, node2, weight=weight)
+    return G
+
+            
+           
+
 
 
 ###########################################
@@ -322,44 +293,44 @@ def sliding_window(corpus, window_size):
 ####Normaliztion Code######################
 ###########################################
 def trim_norm_graph(G_full, trim = 0.1):
-  G = deepcopy(G_full)
-  #Triming portion
-  #this just gets us a list of weights
-  weights = [e[2]["weight"] for e in list(G.edges(data=True))]
-  #print(weights[:10])
-  #simple integral (no width of rectangle needs to be considered)
-  auc = sum(weights)
-  trim_amount = auc*trim
-  trimmed = 0
-  #get the edges in ascending order of weight
-  edges = sorted(G.edges(data=True), key=lambda val : val[2]["weight"])
-  #remove nodes until trim_amount of weights have been removed
-  for a, b, d in edges:
-    weight = d["weight"]
-    if trimmed+weight < trim_amount:
-      G.remove_edge(a, b)
-      trimmed += weight
-    else:
-      break
+    G = deepcopy(G_full)    
+    #scaling portion, this will normalize the values between 0 and 1
+    #we have to rerun these now that edges have been removed
+    weights = [e[2]["weight"] for e in list(G.edges(data=True))]
+    weights = np.array(weights).reshape(-1, 1)
+    edges = sorted(G.edges(data=True), key=lambda val : val[2]["weight"])
+    scaler = MinMaxScaler()
+    scaler.fit(weights)
+    for a, b, d in edges:
+        weight = np.array(d["weight"]).reshape(-1, 1)
+        new_weight = scaler.transform(weight)
+        G[a][b]["weight"] = new_weight[0][0]
 
-  #scaling portion, this will normalize the values between 0 and 1
-  #we have to rerun these now that edges have been removed
-  weights = [e[2]["weight"] for e in list(G.edges(data=True))]
-  weights = np.array(weights).reshape(-1, 1)
-  edges = sorted(G.edges(data=True), key=lambda val : val[2]["weight"])
-  scaler = MinMaxScaler()
-  scaler.fit(weights)
-  for a, b, d in edges:
-    weight = np.array(d["weight"]).reshape(-1, 1)
-    new_weight = scaler.transform(weight)
-    G[a][b]["weight"] = new_weight[0][0]
-  return G
+    #Triming portion
+    #this just gets us a list of weights
+    weights = [e[2]["weight"] for e in list(G.edges(data=True))]
+    #print(weights[:10])
+    #simple integral (no width of rectangle needs to be considered)
+    auc = sum(weights)
+    trim_amount = auc*trim
+    trimmed = 0
+    #get the edges in ascending order of weight
+    edges = sorted(G.edges(data=True), key=lambda val : val[2]["weight"])
+    #remove nodes until trim_amount of weights have been removed
+    for a, b, d in edges:
+        weight = d["weight"]
+        if trimmed+weight < trim_amount:
+            G.remove_edge(a, b)
+            trimmed += weight
+        else:
+            break
+    return G
 
 if __name__ == '__main__':
     #load in bbc dataset
     data = loadbbc()
 
-
+    
     #sequential graph generation
     corpus = data_to_corpus(data, 'word')
     word_counts = get_word_counts(corpus)
@@ -370,8 +341,7 @@ if __name__ == '__main__':
     stop = timeit.default_timer()
     print('Sequential graph generation time: ', stop - start)
     print(G1)
- 
-
+    
 
 
 
@@ -389,10 +359,10 @@ if __name__ == '__main__':
 
     print("syntactic graph", G2)
 
+    
 
 
-
- 
+    
     #semantic graph generation
     start = timeit.default_timer()
 
@@ -404,6 +374,7 @@ if __name__ == '__main__':
 
     print("semantic graph", G3)
 
+    
 
 
  

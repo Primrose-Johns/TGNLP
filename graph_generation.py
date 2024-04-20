@@ -19,6 +19,7 @@ import numpy as np
 from collections import defaultdict
 import spacy
 from spacy.tokens import Doc
+import matplotlib.pyplot as plt
 
 
 import nltk
@@ -326,11 +327,44 @@ def trim_norm_graph(G_full, trim = 0.1):
             break
     return G
 
+
+###########################################
+####Graph Analysis Functions###############
+###########################################
+
+def word_subgraph(G, word, depth=2):
+  #initialize set with original word
+  node_set = set([word])
+
+  #add neighbors to set, set will be used to track all nodes for nbunch in subgraph
+  current_neighbors = G.neighbors(word)
+  node_set.update(list(current_neighbors))
+
+  for i in range(depth-1):
+     build_neighbors(G, node_set)
+
+  #return subgraph with all nodes found
+  return G.subgraph(list(node_set))
+
+def build_neighbors(G, node_set):
+  found_nodes = []
+  for node in node_set:
+     found_nodes.extend(list(G.neighbors(node)))
+  
+  #return set with all new neighbors found
+  node_set.update(found_nodes)
+  return node_set
+
+   
+
 if __name__ == '__main__':
     #load in bbc dataset
     data = loadbbc()
 
-    
+    ##########################
+    #Graph generation testing#
+    ##########################
+
     #sequential graph generation
     corpus = data_to_corpus(data, 'word')
     word_counts = get_word_counts(corpus)
@@ -341,7 +375,6 @@ if __name__ == '__main__':
     stop = timeit.default_timer()
     print('Sequential graph generation time: ', stop - start)
     print(G1)
-    
 
 
 
@@ -359,10 +392,10 @@ if __name__ == '__main__':
 
     print("syntactic graph", G2)
 
-    
 
 
-    
+
+
     #semantic graph generation
     start = timeit.default_timer()
 
@@ -374,10 +407,40 @@ if __name__ == '__main__':
 
     print("semantic graph", G3)
 
-    
+    min_degree_node = min(G3.degree(), key=lambda x: x[1])  # Finds the node with the minimum degree
+
+    # Extract all nodes that have the same minimum degree
+    min_degree = min_degree_node[1]
+    nodes_with_min_degree = [node for node, degree in G3.degree() if degree == min_degree]
+
+    # Print the result
+    print("Node(s) with the least number of neighbors:", nodes_with_min_degree)
+    print("Number of neighbors:", min_degree)
+
 
 
  
+
+    ###########################
+    #Subgraph testing#########
+    ###########################
+
+    
+    '''
+    degree_one_nodes = [node for node, degree in G3.degree() if degree == 1]
+    print("Degree 1 nodes: ", degree_one_nodes)
+    '''
+
+    #.3 to start seeing degrees with 0 and 1 neighbors
+    G1_norm = trim_norm_graph(G1, .3)
+    
+
+    word_subgraph = word_subgraph(G1_norm, 'jade')
+    print(word_subgraph)
+
+    pos = nx.spring_layout(word_subgraph)
+    nx.draw(word_subgraph, pos=pos, with_labels=True)
+    plt.savefig("sequential_graph_trimmed.png")
 
 
 

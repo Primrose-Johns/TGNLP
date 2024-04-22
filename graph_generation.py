@@ -332,7 +332,7 @@ def trim_norm_graph(G_full, trim = 0.1):
 ####Graph Analysis Functions###############
 ###########################################
 
-def word_subgraph(G, word, depth=2):
+def word_subgraph(G, word, depth=1):
   #initialize set with original word
   node_set = set([word])
 
@@ -360,7 +360,7 @@ def build_neighbors(G, node_set):
 if __name__ == '__main__':
     #load in bbc dataset
     data = loadbbc()
-
+    '''
     ##########################
     #Graph generation testing#
     ##########################
@@ -417,7 +417,7 @@ if __name__ == '__main__':
     print("Node(s) with the least number of neighbors:", nodes_with_min_degree)
     print("Number of neighbors:", min_degree)
 
-
+    '''
 
  
 
@@ -425,23 +425,30 @@ if __name__ == '__main__':
     #Subgraph testing#########
     ###########################
 
-    
+
     '''
     degree_one_nodes = [node for node, degree in G3.degree() if degree == 1]
     print("Degree 1 nodes: ", degree_one_nodes)
     '''
-
+    sentence_corpus, word_corpus, word_counts = sem_corpus_preprocessing(data)
+    G3 = get_semantic_graph(word_corpus, sentence_corpus, word_counts)
+    print(G3)
     #.3 to start seeing degrees with 0 and 1 neighbors
-    G1_norm = trim_norm_graph(G1, .3)
-    
+    G3_norm = trim_norm_graph(G3)
+    degree_one_nodes = [node for node, degree in G3_norm.degree() if degree == 0]
+    print("Degree 0 nodes: ", degree_one_nodes)
+    print(len(degree_one_nodes))
 
-    word_subgraph = word_subgraph(G1_norm, 'jade')
+    
+    
+    '''
+    word_subgraph = word_subgraph(G3, 'cant')
     print(word_subgraph)
 
     pos = nx.spring_layout(word_subgraph)
     nx.draw(word_subgraph, pos=pos, with_labels=True)
-    plt.savefig("sequential_graph_trimmed.png")
-
+    plt.savefig("semantic_graph_trimmed_hello_depth1.png")
+    '''
 
 
 

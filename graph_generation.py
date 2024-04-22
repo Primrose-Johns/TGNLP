@@ -293,30 +293,44 @@ def sliding_window(corpus, window_size):
 ###########################################
 ####Normaliztion Code######################
 ###########################################
-def trim_norm_graph(G_full, trim = 0.1):
-    G = deepcopy(G_full)    
+def trim_norm_graph(G_full, trim = 0.1, inplace = False):
+    assert trim <= 1, "Provided value for trim is too large. Trim value must be <= 1"
+    if inplace:
+      G = G_full
+    else:
+      G = deepcopy(G_full) 
+    #print("deepcopy done")
     #scaling portion, this will normalize the values between 0 and 1
-    #we have to rerun these now that edges have been removed
-    weights = [e[2]["weight"] for e in list(G.edges(data=True))]
+    #Grabs the edges as a big list with format [node1, node2, dict of attributes]
+    edges = list(G.edges(data=True))
+    weights = [e[2]["weight"] for e in edges]
     weights = np.array(weights).reshape(-1, 1)
-    edges = sorted(G.edges(data=True), key=lambda val : val[2]["weight"])
     scaler = MinMaxScaler()
-    scaler.fit(weights)
+    #here's where we get our new weights, between 0 and 1
+    weights = scaler.fit_transform(weights)
+    #reshaping this again to make the values easier to access
+    weights = np.array(weights).reshape(-1)
+    i = 0
+    #print("entering main scaling loop")
     for a, b, d in edges:
-        weight = np.array(d["weight"]).reshape(-1, 1)
-        new_weight = scaler.transform(weight)
-        G[a][b]["weight"] = new_weight[0][0]
-
+        #the edges and weights objects represent the same edges in the same order
+        new_weight = weights[i]
+        #print("weight tranformed")
+        #assign the new weight within the graph
+        G[a][b]["weight"] = new_weight
+        #print("graph weight assigned")
+        #assign the new weight within the "edges" and "weights" lists
+        edges[i][2]["weight"] = new_weight
+        #print("edges list updated")
+        i+=1
+    #print("Scaling done")
     #Triming portion
-    #this just gets us a list of weights
-    weights = [e[2]["weight"] for e in list(G.edges(data=True))]
-    #print(weights[:10])
     #simple integral (no width of rectangle needs to be considered)
     auc = sum(weights)
     trim_amount = auc*trim
     trimmed = 0
-    #get the edges in ascending order of weight
-    edges = sorted(G.edges(data=True), key=lambda val : val[2]["weight"])
+    #sort out list of scaled edges in ascending order
+    edges = sorted(edges, key=lambda val : val[2]["weight"])
     #remove nodes until trim_amount of weights have been removed
     for a, b, d in edges:
         weight = d["weight"]
@@ -325,6 +339,7 @@ def trim_norm_graph(G_full, trim = 0.1):
             trimmed += weight
         else:
             break
+    #print("trimming done")
     return G
 
 

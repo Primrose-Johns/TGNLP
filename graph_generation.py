@@ -2,7 +2,6 @@ import os
 import pickle
 import string
 import pandas as pd
-from corenlp import StanfordCoreNLP
 import re
 import networkx as nx
 from gensim.models import Word2Vec

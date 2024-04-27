@@ -2,7 +2,6 @@ import os
 import pickle
 import string
 import pandas as pd
-from corenlp import StanfordCoreNLP
 import re
 import networkx as nx
 from gensim.models import Word2Vec
@@ -21,9 +20,19 @@ import spacy
 from spacy.tokens import Doc
 import matplotlib.pyplot as plt
 
-
 import nltk
+#nltk.download('punkt')
+#python -m spacy download en_core_web_sm
 from nltk.tokenize import sent_tokenize, word_tokenize
+
+
+
+
+class Corpus:
+  def __init__(self, data):
+    self.sentence_corpus = data_to_corpus(data, 'sentence')
+    self.word_corpus = data_to_corpus(data, 'word')
+    self.word_counts = get_word_counts(self.word_corpus)
 
 
 
@@ -94,6 +103,7 @@ def check_type(data):
 
 
 #create dictionary with words as key and occurences in corpus as value
+#takes word corpus as input
 def get_word_counts(corpus):
   words = {}
   for entry in corpus:
@@ -110,26 +120,18 @@ def get_word_counts(corpus):
 ###########################################
 
 
-#preprocess data for syntactic graph
-def syn_corpus_preprocessing(data):
-    #generate list of sentences
-    sentence_corpus = data_to_corpus(data, 'sentence')
-
-    #preprocess data to one large string
-    word_corpus  = data_to_corpus(data, 'word')
-
-    word_counts = get_word_counts(word_corpus)
-
-    return sentence_corpus, word_counts
-
 
 #creates the graph from preprocessed data
-def get_syntactic_graph(sentence_corpus, word_counts):
-    
+def get_syntactic_graph(tgnlp_corpus):
+    assert type(tgnlp_corpus) == Corpus, "Inputted data is not of type Corpus"
+
+    sentence_corpus = tgnlp_corpus.sentence_corpus
+    word_counts = tgnlp_corpus.word_counts
+
     #get syntactic pair edge list
     edge_dict = syntactic_pair_generation(sentence_corpus)
 
-    return syn_graph_generation(edge_dict)
+    return syn_graph_generation(edge_dict, word_counts)
 
 
 
@@ -163,11 +165,13 @@ def syntactic_pair_generation(sentence_corpus):
     return edge_dict
 
 
-def syn_graph_generation(edge_dict):
+def syn_graph_generation(edge_dict, word_counts):
     #create graph
     G = nx.Graph()
     for (node1, node2), weight in edge_dict.items():
-      G.add_edge(node1, node2, weight=weight)
+      normalized_weight = weight/min(word_counts[node1], word_counts[node2])
+
+      G.add_edge(node1, node2, weight=normalized_weight)
     return G
 
             
@@ -180,18 +184,13 @@ def syn_graph_generation(edge_dict):
 ###########################################
 
 
-def sem_corpus_preprocessing(data):
-    #list of sentences
-    sentence_corpus = data_to_corpus(data, 'sentence')
-
-    #list of words
-    word_corpus = data_to_corpus(data, 'word')
-    word_counts = get_word_counts(word_corpus)
-
-    return sentence_corpus, word_corpus, word_counts
 
 
-def get_semantic_graph(word_corpus, sentence_corpus, word_counts):
+def get_semantic_graph(tgnlp_corpus):
+    assert type(tgnlp_corpus) == Corpus, "Inputted data is not of type Corpus"
+    word_corpus = tgnlp_corpus.word_corpus
+    sentence_corpus = tgnlp_corpus.sentence_corpus
+    word_counts = tgnlp_corpus.word_counts
     word2vec_input = []
     for sentence in sentence_corpus:
         temp_word_list = []
@@ -230,9 +229,10 @@ def generate_sem_edgelist(model, word_corpus, sentence_corpus, word_counts):
             #word2vec can return empty string, need to make sure not to use
             if len(word2) == 0:
                continue
-
-            norm_edgeweight = word_similarity[1]/(min(word_counts[word1], word_counts[word2]))
-            sem_edgelist.append((word1, word2, norm_edgeweight))
+              
+            #taking out normalization for semntic
+            #norm_edgeweight = word_similarity[1]/(min(word_counts[word1], word_counts[word2]))
+            sem_edgelist.append((word1, word2, word_similarity[1]))
 
 
 
@@ -250,7 +250,13 @@ def generate_sem_edgelist(model, word_corpus, sentence_corpus, word_counts):
 
 #returns a networkx graph representing sequential relationships between words
 #in the provided corpus
-def get_sequential_graph(corpus, word_counts, window_size=5):
+def get_sequential_graph(tgnlp_corpus, window_size=5):
+  
+  assert type(tgnlp_corpus) == Corpus, "Inputted data is not of type Corpus"  
+
+  corpus = tgnlp_corpus.word_corpus
+  word_counts = tgnlp_corpus.word_counts
+  
   G = nx.Graph()
   #get the dict of word pair occurences
   pairs = sliding_window(corpus, window_size)
@@ -291,7 +297,7 @@ def sliding_window(corpus, window_size):
 
 
 ###########################################
-####Normaliztion Code######################
+####Normalization Code######################
 ###########################################
 def trim_norm_graph(G_full, trim = 0.1, inplace = False):
     assert trim <= 1, "Provided value for trim is too large. Trim value must be <= 1"
@@ -370,107 +376,4 @@ def build_neighbors(G, node_set):
   node_set.update(found_nodes)
   return node_set
 
-   
-
-if __name__ == '__main__':
-    #load in bbc dataset
-    data = loadbbc()
-    '''
-    ##########################
-    #Graph generation testing#
-    ##########################
-
-    #sequential graph generation
-    corpus = data_to_corpus(data, 'word')
-    word_counts = get_word_counts(corpus)
-
-    start = timeit.default_timer()
-    G1 = get_sequential_graph(corpus, word_counts)
-
-    stop = timeit.default_timer()
-    print('Sequential graph generation time: ', stop - start)
-    print(G1)
-
-
-
-    #syntatic graph generation
-    #generate list of sentences and word count dictionary
-    sentence_corpus, word_counts = syn_corpus_preprocessing(data)
-
-    start = timeit.default_timer()
-
-    #generate networkd graph
-    G2 = get_syntactic_graph(sentence_corpus, word_counts)
-
-    stop = timeit.default_timer()
-    print('Syntactic graph generation time: ', stop - start)
-
-    print("syntactic graph", G2)
-
-
-
-
-
-    #semantic graph generation
-    start = timeit.default_timer()
-
-    sentence_corpus, word_corpus, word_counts = sem_corpus_preprocessing(data)
-    G3 = get_semantic_graph(word_corpus, sentence_corpus, word_counts)
-    
-    stop = timeit.default_timer()
-    print('Semantic graph generation time: ', stop - start)
-
-    print("semantic graph", G3)
-
-    min_degree_node = min(G3.degree(), key=lambda x: x[1])  # Finds the node with the minimum degree
-
-    # Extract all nodes that have the same minimum degree
-    min_degree = min_degree_node[1]
-    nodes_with_min_degree = [node for node, degree in G3.degree() if degree == min_degree]
-
-    # Print the result
-    print("Node(s) with the least number of neighbors:", nodes_with_min_degree)
-    print("Number of neighbors:", min_degree)
-
-    '''
-
- 
-
-    ###########################
-    #Subgraph testing#########
-    ###########################
-
-
-    '''
-    degree_one_nodes = [node for node, degree in G3.degree() if degree == 1]
-    print("Degree 1 nodes: ", degree_one_nodes)
-    '''
-    sentence_corpus, word_corpus, word_counts = sem_corpus_preprocessing(data)
-    G3 = get_semantic_graph(word_corpus, sentence_corpus, word_counts)
-    print(G3)
-    #.3 to start seeing degrees with 0 and 1 neighbors
-    G3_norm = trim_norm_graph(G3)
-    degree_one_nodes = [node for node, degree in G3_norm.degree() if degree == 0]
-    print("Degree 0 nodes: ", degree_one_nodes)
-    print(len(degree_one_nodes))
-
-    
-    
-    '''
-    word_subgraph = word_subgraph(G3, 'cant')
-    print(word_subgraph)
-
-    pos = nx.spring_layout(word_subgraph)
-    nx.draw(word_subgraph, pos=pos, with_labels=True)
-    plt.savefig("semantic_graph_trimmed_hello_depth1.png")
-    '''
-
-
-
-    
-
-    
-
-    
-    
    

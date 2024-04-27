@@ -1,3 +1,7 @@
 
 bbc_data.csv
 test.py
+*.pyc
+*.pyc
+.coverage
+prim_test.py

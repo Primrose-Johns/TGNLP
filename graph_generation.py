@@ -376,4 +376,166 @@ def build_neighbors(G, node_set):
   node_set.update(found_nodes)
   return node_set
 
-   
+###########################################
+####Graph Report Functions#################
+###########################################
+from reportlab.lib.pagesizes import letter
+from collections import Counter
+from reportlab.pdfgen import canvas
+from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer, Image
+from reportlab.lib import colors
+from reportlab.lib.styles import getSampleStyleSheet
+from io import BytesIO
+
+def generate_graph_report(G):
+  #get all metrics to be dispalyed in report
+  metrics_dict = generate_metrics(G)
+
+  #create document with USA standard of letter
+  doc = SimpleDocTemplate("tgnlp_report.pdf", pagesize=letter)
+
+  #holding all elements to add to pdf
+  elements = []
+
+  styles = getSampleStyleSheet()
+  style = styles['Title']
+  title = Paragraph("TGNLP Network Report", style)
+  
+
+  elements.append(title)
+  elements.append(Spacer(1, 20))
+
+  #graph metrics for first table
+  graph_data = [
+     ["Graph Metrics"],
+     ["number of nodes", metrics_dict["number_of_nodes"]],
+     ["number of edges", metrics_dict["number_of_edges"]],
+     ["average degree", format(metrics_dict["average_degree"], ".4f")],
+     ["average centrality", format(metrics_dict["average_centrality"], ".4f")],
+     ["assortativity coefficient", format(metrics_dict["assortativity_coefficient"], ".4f")],
+     ["highest degree word", metrics_dict["highest_degree_word"][0]],
+     ["lowest degree word", metrics_dict["lowest_degree_word"][0]],
+  ]
+
+  #word metrics for second table
+  word_data = [
+     ["Word", "Degree", "Degree Centrality"],
+     [metrics_dict["highest_degree_word"][0], metrics_dict["highest_degree_word"][1], format(metrics_dict['highest_degree_word_centrality'], ".4f")], #showing up to four decimal places
+     [metrics_dict["lowest_degree_word"][0], metrics_dict["lowest_degree_word"][1],format(metrics_dict['lowest_degree_word_centrality'], ".4f")],
+  ]
+
+  #create first table
+  table1 = Table(graph_data, colWidths = [200,200])
+  table1.setStyle(TableStyle([
+        ('BACKGROUND', (0, 0), (-1, 0), colors.whitesmoke),
+        ('TEXTCOLOR', (0, 0), (-1, -1), colors.black),
+        ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+        ('FONTNAME', (0, 0), (-1, -1), 'Helvetica'),
+        ('FONTSIZE', (0, 0), (-1, -1), 13),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 10),
+        ('GRID', (0, 0), (-1, -1), 1, colors.black),
+        #for header row make it centered
+        ('SPAN', (0, 0), (-1, 0)),
+  ]))
+
+  #create second table
+  table2 = Table(word_data, colWidths = [133,133,133])
+  table2.setStyle(TableStyle([
+        ('BACKGROUND', (0, 0), (-1, 0), colors.whitesmoke),
+        ('TEXTCOLOR', (0, 0), (-1, -1), colors.black),
+        ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+        ('FONTNAME', (0, 0), (-1, -1), 'Helvetica'),
+        ('FONTSIZE', (0, 0), (-1, -1), 13),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 10),
+        ('GRID', (0, 0), (-1, -1), 1, colors.black)
+  ]))
+
+  elements.append(table1)
+  elements.append(Spacer(1, 13))
+  elements.append(table2)
+
+  fig_buffer1, fig_buffer2 = generate_degree_distribution(metrics_dict["degree_count"])
+  fig1 = Image(fig_buffer1, width=500, height=300)
+  fig2 = Image(fig_buffer2, width=500, height=300)
+  elements.append(fig1)
+  elements.append(fig2)
+
+  word = ''
+  for node, degree in G.degree():
+     if degree == 10:
+        word = node
+        break
+
+  if word == '':
+    word, degree = metrics_dict["highest_degree_word"]
+  
+  word_subg = word_subgraph(G, word)
+  plt.figure(figsize=(12, 8))
+  plt.title("Example word subgraph")
+  pos = nx.spring_layout(word_subg)
+  nx.draw(word_subg, pos,with_labels=True,)
+  wordsub_buffer = BytesIO()
+  plt.savefig(wordsub_buffer, format='PNG')
+  plt.clf()
+  fig3 = Image(wordsub_buffer, width=500, height=300)
+
+  elements.append(fig3)
+
+  doc.build(elements)
+
+def generate_degree_distribution(deg_counts):
+  plt.figure(figsize=(12, 8))
+  plt.scatter([key for key in deg_counts.keys()], [val for val in deg_counts.values()], color = 'b')
+  plt.title("Degree Distribution of Network")
+  plt.ylabel('Number of Nodes')
+  plt.xlabel('Degree')
+  fig_buffer1 = BytesIO()
+  plt.savefig(fig_buffer1, format='PNG')
+
+  plt.xscale("log")
+  plt.yscale("log")
+  plt.title("Degree Distribution of Network(log)")
+  plt.ylabel('Number of Nodes(log)')
+  plt.xlabel('Degree(log)')
+  fig_buffer2 = BytesIO()
+  plt.savefig(fig_buffer2, format='PNG')
+
+  plt.clf()
+  return fig_buffer1, fig_buffer2
+  
+
+def generate_metrics(G):
+  #dict to hold all metrics
+  metrics_dict = {}
+
+  #creating list of sorted tuples of node,degree  by degree
+  sorted_degree = sorted(G.degree, key=lambda x: x[1], reverse=True)
+
+  #first and last words in sorted list
+  highest_degree_word = sorted_degree[0][0]
+  lowest_degree_word = sorted_degree[-1][0]
+
+  #getting general metrics
+  metrics_dict['number_of_nodes'] = G.number_of_nodes()
+  metrics_dict['number_of_edges'] = G.number_of_edges()
+
+  metrics_dict['highest_degree_word'] = (highest_degree_word,sorted_degree[0][1])
+  metrics_dict['lowest_degree_word'] = (lowest_degree_word,sorted_degree[-1][1])
+  metrics_dict['average_degree'] = sum([degree[1] for degree in G.degree]) / G.number_of_nodes()
+  
+  centrality_dict =  nx.degree_centrality(G)
+  metrics_dict['highest_degree_word_centrality'] = centrality_dict[highest_degree_word]
+  metrics_dict['lowest_degree_word_centrality'] = centrality_dict[lowest_degree_word]
+  metrics_dict['average_centrality'] = sum(centrality_dict.values()) / G.number_of_nodes()
+  
+  metrics_dict["assortativity_coefficient"] = nx.degree_assortativity_coefficient(G)
+ 
+  #creating degree sequence
+  degree_list = [degree for _, degree in sorted_degree]
+
+  #using collections to get count of each degree
+  degree_count = Counter(degree_list)
+  metrics_dict["degree_count"] = degree_count
+
+  return metrics_dict
+

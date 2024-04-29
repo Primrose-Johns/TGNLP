@@ -19,6 +19,12 @@ from collections import defaultdict
 import spacy
 from spacy.tokens import Doc
 import matplotlib.pyplot as plt
+from reportlab.lib.pagesizes import letter
+from collections import Counter
+from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer, Image
+from reportlab.lib import colors
+from reportlab.lib.styles import getSampleStyleSheet
+from io import BytesIO
 
 import nltk
 #nltk.download('punkt')
@@ -39,6 +45,7 @@ class Corpus:
 ###########################################
 ####Preprocessing Corpus Code##############
 ###########################################
+
 def loadbbc():
     df = pd.read_csv("bbc_data.csv", header = 0)
     df["data"] = df["data"].str.replace(r"\S+xc2\S+", "", regex=True)
@@ -119,8 +126,6 @@ def get_word_counts(corpus):
 ####Syntactic Graph Code###################
 ###########################################
 
-
-
 #creates the graph from preprocessed data
 def get_syntactic_graph(tgnlp_corpus):
     assert type(tgnlp_corpus) == Corpus, "Inputted data is not of type Corpus"
@@ -128,11 +133,11 @@ def get_syntactic_graph(tgnlp_corpus):
     sentence_corpus = tgnlp_corpus.sentence_corpus
     word_counts = tgnlp_corpus.word_counts
 
-    #get syntactic pair edge list
+    #returns edge list as dict in form (word1, word2) : weight
     edge_dict = syntactic_pair_generation(sentence_corpus)
 
+    #returns networkx graph
     return syn_graph_generation(edge_dict, word_counts)
-
 
 
 
@@ -151,7 +156,6 @@ def syntactic_pair_generation(sentence_corpus):
 
     nlp.tokenizer = custom_tokenizer
 
-
     for sentence in sentence_corpus:
        for word in nlp(sentence):
           #takes care of root
@@ -160,10 +164,8 @@ def syntactic_pair_generation(sentence_corpus):
           
           #adding one weight for each syntactic dependcy, could further addd different weights depending on type of dependency
           edge_dict[(word.text, word.head.text)] +=1
-   
 
     return edge_dict
-
 
 def syn_graph_generation(edge_dict, word_counts):
     #create graph
@@ -175,27 +177,24 @@ def syn_graph_generation(edge_dict, word_counts):
     return G
 
             
-           
-
 
 
 ###########################################
 ####Semantic Graph Code####################
 ###########################################
 
-
-
-
 def get_semantic_graph(tgnlp_corpus):
     assert type(tgnlp_corpus) == Corpus, "Inputted data is not of type Corpus"
+
     word_corpus = tgnlp_corpus.word_corpus
     sentence_corpus = tgnlp_corpus.sentence_corpus
     word_counts = tgnlp_corpus.word_counts
+
+    #format for word2vec input, takes list of list of words, outer list is sentences inner list is words in setnences
     word2vec_input = []
     for sentence in sentence_corpus:
         temp_word_list = []
         sentence_list = sentence.split(' ')
-        #print(sentence_list)
         for word in sentence_list:
             temp_word_list.append(word)
         word2vec_input.append(temp_word_list)
@@ -203,6 +202,7 @@ def get_semantic_graph(tgnlp_corpus):
     #using skipgram, better for small corpus
     model = gensim.models.Word2Vec(word2vec_input, min_count=1, vector_size=50, window=5, sg=1)
 
+    #returns edge list in form [(word1, word2, weight)...]
     edge_list = generate_sem_edgelist(model, word_corpus, sentence_corpus, word_counts)
 
     #return semantic graph
@@ -233,13 +233,6 @@ def generate_sem_edgelist(model, word_corpus, sentence_corpus, word_counts):
             #taking out normalization for semntic
             #norm_edgeweight = word_similarity[1]/(min(word_counts[word1], word_counts[word2]))
             sem_edgelist.append((word1, word2, word_similarity[1]))
-
-
-
-    #TODO probably remove edgelist save
-    with open('sem_edge_list.txt', 'w') as file:
-        for edge in sem_edgelist:
-            file.write(f"{edge[0]}, {edge[1]}, {edge[2]}\n")   
   
     return sem_edgelist
 
@@ -299,6 +292,7 @@ def sliding_window(corpus, window_size):
 ###########################################
 ####Normalization Code######################
 ###########################################
+
 def trim_norm_graph(G_full, trim = 0.1, inplace = False):
     assert trim <= 1, "Provided value for trim is too large. Trim value must be <= 1"
     if inplace:
@@ -379,13 +373,6 @@ def build_neighbors(G, node_set):
 ###########################################
 ####Graph Report Functions#################
 ###########################################
-from reportlab.lib.pagesizes import letter
-from collections import Counter
-from reportlab.pdfgen import canvas
-from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer, Image
-from reportlab.lib import colors
-from reportlab.lib.styles import getSampleStyleSheet
-from io import BytesIO
 
 def generate_graph_report(G):
   #get all metrics to be dispalyed in report
@@ -397,11 +384,12 @@ def generate_graph_report(G):
   #holding all elements to add to pdf
   elements = []
 
+  #create title
   styles = getSampleStyleSheet()
   style = styles['Title']
   title = Paragraph("TGNLP Network Report", style)
   
-
+  #appending elements to list in order of displaying
   elements.append(title)
   elements.append(Spacer(1, 20))
 
@@ -410,7 +398,7 @@ def generate_graph_report(G):
      ["Graph Metrics"],
      ["number of nodes", metrics_dict["number_of_nodes"]],
      ["number of edges", metrics_dict["number_of_edges"]],
-     ["average degree", format(metrics_dict["average_degree"], ".4f")],
+     ["average degree", format(metrics_dict["average_degree"], ".4f")], #displaying up to four decimal places
      ["average centrality", format(metrics_dict["average_centrality"], ".4f")],
      ["assortativity coefficient", format(metrics_dict["assortativity_coefficient"], ".4f")],
      ["highest degree word", metrics_dict["highest_degree_word"][0]],
@@ -420,7 +408,7 @@ def generate_graph_report(G):
   #word metrics for second table
   word_data = [
      ["Word", "Degree", "Degree Centrality"],
-     [metrics_dict["highest_degree_word"][0], metrics_dict["highest_degree_word"][1], format(metrics_dict['highest_degree_word_centrality'], ".4f")], #showing up to four decimal places
+     [metrics_dict["highest_degree_word"][0], metrics_dict["highest_degree_word"][1], format(metrics_dict['highest_degree_word_centrality'], ".4f")], 
      [metrics_dict["lowest_degree_word"][0], metrics_dict["lowest_degree_word"][1],format(metrics_dict['lowest_degree_word_centrality'], ".4f")],
   ]
 
@@ -454,44 +442,66 @@ def generate_graph_report(G):
   elements.append(Spacer(1, 13))
   elements.append(table2)
 
+  #making figures of degree distributions
   fig_buffer1, fig_buffer2 = generate_degree_distribution(metrics_dict["degree_count"])
   fig1 = Image(fig_buffer1, width=500, height=300)
   fig2 = Image(fig_buffer2, width=500, height=300)
   elements.append(fig1)
   elements.append(fig2)
 
-  word = ''
+  #displaying a subgraph of a word in the graph
+  subword = ''
+
+  #finding a word with 10-15 degrees to display, good number for clear visualization
   for node, degree in G.degree():
-     if degree == 10:
-        word = node
+     if degree >= 10 and degree <= 15:
+        subword = node
         break
 
-  if word == '':
+  #catching edge cases where network has no words in degree range  
+  if subword == '':
     word, degree = metrics_dict["highest_degree_word"]
+    print(word = metrics_dict["lowset_degree_word"][0])
+    #if the highest degree is less than 10 just visualize the highest degree word
+    if degree < 10:
+       subword = word
+    else:
+    #if greater than 15 just visualize the lowest degree word
+       subword = metrics_dict["lowset_degree_word"][0]
   
-  word_subg = word_subgraph(G, word)
+  #get word subgraph
+  word_subg = word_subgraph(G, subword)
+
+  #plot figure
   plt.figure(figsize=(12, 8))
-  plt.title("Example word subgraph")
+  plt.title(f"Example Word \"{subword}\" Subgraph")
   pos = nx.spring_layout(word_subg)
-  nx.draw(word_subg, pos,with_labels=True,)
+  nx.draw_networkx(word_subg, pos,with_labels=True, node_color = 'lightblue', edge_color = 'lightgray', node_size = [100 * word_subg.degree(node) for node in word_subg.nodes()])
+
+  #save to buffer
   wordsub_buffer = BytesIO()
   plt.savefig(wordsub_buffer, format='PNG')
   plt.clf()
-  fig3 = Image(wordsub_buffer, width=500, height=300)
 
+  #add to pdf
+  fig3 = Image(wordsub_buffer, width=500, height=300)
   elements.append(fig3)
 
+  #build the final pdf
   doc.build(elements)
 
 def generate_degree_distribution(deg_counts):
+  #plot degree distribution
   plt.figure(figsize=(12, 8))
   plt.scatter([key for key in deg_counts.keys()], [val for val in deg_counts.values()], color = 'b')
   plt.title("Degree Distribution of Network")
   plt.ylabel('Number of Nodes')
   plt.xlabel('Degree')
+  #save fig to buffer
   fig_buffer1 = BytesIO()
   plt.savefig(fig_buffer1, format='PNG')
 
+  #plot degree distribution in log log space
   plt.xscale("log")
   plt.yscale("log")
   plt.title("Degree Distribution of Network(log)")

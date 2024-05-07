@@ -27,7 +27,7 @@ from reportlab.lib.styles import getSampleStyleSheet
 from io import BytesIO
 
 import nltk
-#nltk.download('punkt')
+nltk.download('punkt')
 #python -m spacy download en_core_web_sm
 from nltk.tokenize import sent_tokenize, word_tokenize
 
@@ -56,35 +56,36 @@ def loadbbc():
 def data_to_corpus(data_raw, corpus_type='word'):
     #Load the data from the acceptable types
     if type(data_raw) == pd.core.series.Series:
-        print("Series")
+        #print("Series")
         assert data_raw.ndim == 1, "series must be 1 dimensional"
         temp = list(data_raw)
-        print(len(temp[0]))
+        #print(len(temp[0]))
         assert check_type(temp), "series must only have elements of type: string"
         data = " ".join(temp)
         print(len(data))
     elif type(data_raw) == list:
-        print("List")
+        #print("List")
         assert check_type(data_raw), "list must only have elements of type: string."
         data = " ".join(data_raw)
     elif type(data_raw) == str:
-        print("string")
+        #print("string")
         data = data_raw
     else:
         assert False, f"Load_data requires one of type: Pandas Series, list of strings, string.\n  given data is of type{type(data_raw)}"
     #clean the data
     #remove numbers/anything with a number in it
-    data = re.sub("\S+\d\S+", "", data)
+    data = re.sub(r"\S+\d\S+", "", data)
 
  
-    if corpus_type == 'sentence':
-        data = re.sub("[^A-Za-z .]", "", data)
-    elif corpus_type == 'word':
+    if corpus_type == "sentence":
+        data = re.sub(r"[?!]", ".", data)
+        data = re.sub(r"[^A-Za-z .]", "", data)
+    elif corpus_type == "word":
         #remove special characters/punctuation
-        data = re.sub("[^A-Za-z ]", "", data)
+        data = re.sub(r"[^A-Za-z ]", "", data)
 
     #remove padding
-    data = re.sub("\s+", " ", data).strip()
+    data = re.sub(r"\s+", " ", data).strip()
     #make all lowercase
     data = data.lower()
 
@@ -260,7 +261,9 @@ def get_sequential_graph(tgnlp_corpus, window_size=5):
     denom = min([word_counts[first], word_counts[second]])
     weight = val/denom
     G.add_edge(first, second, weight = weight)
+    #print("Edge added")
     #create a weighted edge from word A to word B
+  #print(f"In seq function: Graph nodes = {G.number_of_nodes()}")
   return G
 
 def sliding_window(corpus, window_size):
@@ -461,7 +464,7 @@ def generate_graph_report(G):
   #catching edge cases where network has no words in degree range  
   if subword == '':
     word, degree = metrics_dict["highest_degree_word"]
-    print(word = metrics_dict["lowset_degree_word"][0])
+    #print(word = metrics_dict["lowset_degree_word"][0])
     #if the highest degree is less than 10 just visualize the highest degree word
     if degree < 10:
        subword = word

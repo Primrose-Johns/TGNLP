@@ -399,7 +399,7 @@ def generate_graph_report(G):
      ["number of nodes", metrics_dict["number_of_nodes"]],
      ["number of edges", metrics_dict["number_of_edges"]],
      ["average degree", format(metrics_dict["average_degree"], ".4f")], #displaying up to four decimal places
-     ["average centrality", format(metrics_dict["average_centrality"], ".4f")],
+     ["average degree centrality", format(metrics_dict["average_centrality"], ".4f")],
      ["assortativity coefficient", format(metrics_dict["assortativity_coefficient"], ".4f")],
      ["highest degree word", metrics_dict["highest_degree_word"][0]],
      ["lowest degree word", metrics_dict["lowest_degree_word"][0]],
@@ -461,13 +461,12 @@ def generate_graph_report(G):
   #catching edge cases where network has no words in degree range  
   if subword == '':
     word, degree = metrics_dict["highest_degree_word"]
-    print(word = metrics_dict["lowset_degree_word"][0])
     #if the highest degree is less than 10 just visualize the highest degree word
     if degree < 10:
        subword = word
     else:
     #if greater than 15 just visualize the lowest degree word
-       subword = metrics_dict["lowset_degree_word"][0]
+       subword = metrics_dict["lowest_degree_word"][0]
   
   #get word subgraph
   word_subg = word_subgraph(G, subword)

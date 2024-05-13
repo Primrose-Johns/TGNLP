@@ -5,3 +5,5 @@ test.py
 *.pyc
 .coverage
 prim_test.py
+*.pyc
+*.pdf

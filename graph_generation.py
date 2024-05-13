@@ -221,7 +221,7 @@ def generate_sem_edgelist(model, word_corpus, sentence_corpus, word_counts):
     #unique list of words
     unique_word_list = list(set(word_corpus))
     for word1 in unique_word_list:
-        similar = model.wv.most_similar(word1, topn = 50)
+        similar = model.wv.most_similar(word1, topn = 20)
 
         #tuple of word and cosine similarity
         for word_similarity in similar:
@@ -464,7 +464,7 @@ def generate_graph_report(G):
   #catching edge cases where network has no words in degree range  
   if subword == '':
     word, degree = metrics_dict["highest_degree_word"]
-    #print(word = metrics_dict["lowset_degree_word"][0])
+
     #if the highest degree is less than 10 just visualize the highest degree word
     if degree < 10:
        subword = word

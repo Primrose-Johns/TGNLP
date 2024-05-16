@@ -62,7 +62,7 @@ def data_to_corpus(data_raw, corpus_type='word'):
         #print(len(temp[0]))
         assert check_type(temp), "series must only have elements of type: string"
         data = " ".join(temp)
-        print(len(data))
+        #print(len(data))
     elif type(data_raw) == list:
         #print("List")
         assert check_type(data_raw), "list must only have elements of type: string."

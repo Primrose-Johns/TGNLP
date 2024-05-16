@@ -27,7 +27,7 @@ from reportlab.lib.styles import getSampleStyleSheet
 from io import BytesIO
 
 import nltk
-nltk.download('punkt')
+nltk.download('punkt', quiet=True)
 #python -m spacy download en_core_web_sm
 from nltk.tokenize import sent_tokenize, word_tokenize
 

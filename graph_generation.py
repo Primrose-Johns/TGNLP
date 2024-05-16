@@ -244,6 +244,7 @@ def generate_sem_edgelist(model, word_corpus, sentence_corpus, word_counts):
 
 #returns a networkx graph representing sequential relationships between words
 #in the provided corpus
+#TODO: Add required size contraints for window_size
 def get_sequential_graph(tgnlp_corpus, window_size=5):
   
   assert type(tgnlp_corpus) == Corpus, "Inputted data is not of type Corpus"  

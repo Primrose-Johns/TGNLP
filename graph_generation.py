@@ -69,6 +69,7 @@ def data_to_corpus(data_raw, corpus_type='word', remove_stopwords = False):
           raise ValueError("series must only have elements of type: string")
         data = " ".join(temp)
         #print(len(data))
+        #print(len(data))
     elif type(data_raw) == list:
         #print("List")
         if not check_type(data_raw):
@@ -324,6 +325,7 @@ def generate_sem_edgelist(model, word_corpus, sentence_corpus, word_counts):
 
 #returns a networkx graph representing sequential relationships between words
 #in the provided corpus
+#TODO: Add required size contraints for window_size
 #TODO: Add required size contraints for window_size
 def get_sequential_graph(tgnlp_corpus, window_size=5):
   

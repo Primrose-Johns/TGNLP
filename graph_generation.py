@@ -61,21 +61,24 @@ def data_to_corpus(data_raw, corpus_type='word', remove_stopwords = False):
     #Load the data from the acceptable types
     if type(data_raw) == pd.core.series.Series:
         #print("Series")
-        assert data_raw.ndim == 1, "series must be 1 dimensional"
+        if data_raw.ndim != 1:
+          raise ValueError("series must be 1 dimensional")
         temp = list(data_raw)
         #print(len(temp[0]))
-        assert check_type(temp), "series must only have elements of type: string"
+        if not check_type(temp):
+          raise ValueError("series must only have elements of type: string")
         data = " ".join(temp)
         #print(len(data))
     elif type(data_raw) == list:
         #print("List")
-        assert check_type(data_raw), "list must only have elements of type: string."
+        if not check_type(data_raw):
+            raise ValueError("list must only have elements of type: string")
         data = " ".join(data_raw)
     elif type(data_raw) == str:
         #print("string")
         data = data_raw
     else:
-        assert False, f"Load_data requires one of type: Pandas Series, list of strings, string.\n  given data is of type{type(data_raw)}"
+        raise TypeError(f"Load_data requires one of type: Pandas Series, list of strings, string.\n  given data is of type{type(data_raw)}")
     #clean the data
     #remove numbers/anything with a number in it
     data = re.sub(r"\S+\d\S+", "", data)
@@ -128,7 +131,8 @@ def data_to_corpus(data_raw, corpus_type='word', remove_stopwords = False):
 #due to how this function is used, it assumes what is passed to it is a list
 #helper function for load_data, used to make sure a list only has strings in it
 def check_type(data):
-  assert (type(data) == list), "checktype must be given a list"
+  if not isinstance(data, list):
+    raise TypeError("checktype must be given a list")
   return all(type(i)==str for i in data)
 
 
@@ -169,8 +173,8 @@ def process_text(text, lower_case=True, remove_stopwords=True, lemmatization = F
 #turn a dataframe into preprocessed list of documents with each document containing list of words
 def dataframe_to_tokens_labels(df, text_column_name, label_column_name, lower_case=True, remove_stopwords=True, lemmatization = False):
   #checking if valid dataframe
-  if type(df) != pd.DataFrame: 
-    raise ValueError("Inputted data is not of type Pandas DataFrame")
+  if not isinstance(df, pd.DataFrame):
+      raise TypeError("Inputted data is not of type Pandas DataFrame")
   
   #checking that columns exist in the dataframe
   if text_column_name not in df.columns:
@@ -203,7 +207,8 @@ def dataframe_to_tokens_labels(df, text_column_name, label_column_name, lower_ca
 
 #creates the graph from preprocessed data
 def get_syntactic_graph(tgnlp_corpus):
-    assert type(tgnlp_corpus) == Corpus, "Inputted data is not of type Corpus"
+    if not isinstance(tgnlp_corpus, Corpus):
+      raise TypeError("Inputted data is not of type Corpus") 
 
     sentence_corpus = tgnlp_corpus.sentence_corpus
     word_counts = tgnlp_corpus.word_counts
@@ -259,7 +264,8 @@ def syn_graph_generation(edge_dict, word_counts):
 ###########################################
 
 def get_semantic_graph(tgnlp_corpus):
-    assert type(tgnlp_corpus) == Corpus, "Inputted data is not of type Corpus"
+    if not isinstance(tgnlp_corpus, Corpus):
+      raise TypeError("Inputted data is not of type Corpus") 
 
     word_corpus = tgnlp_corpus.word_corpus
     sentence_corpus = tgnlp_corpus.sentence_corpus
@@ -321,7 +327,8 @@ def generate_sem_edgelist(model, word_corpus, sentence_corpus, word_counts):
 #TODO: Add required size contraints for window_size
 def get_sequential_graph(tgnlp_corpus, window_size=5):
   
-  assert type(tgnlp_corpus) == Corpus, "Inputted data is not of type Corpus"  
+  if not isinstance(tgnlp_corpus, Corpus):
+    raise TypeError("Inputted data is not of type Corpus") 
 
   corpus = tgnlp_corpus.word_corpus
   word_counts = tgnlp_corpus.word_counts
@@ -372,7 +379,8 @@ def sliding_window(corpus, window_size):
 ###########################################
 
 def trim_norm_graph(G_full, trim = 0.1, inplace = False):
-    assert trim <= 1, "Provided value for trim is too large. Trim value must be <= 1"
+    if trim > 1:
+      raise ValueError("Provided value for trim is too large. Trim value must be <= 1")
     if inplace:
       G = G_full
     else:

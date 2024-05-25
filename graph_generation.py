@@ -29,9 +29,11 @@ from io import BytesIO
 import nltk
 nltk.download('punkt', quiet=True)
 nltk.download('stopwords', quiet=True)
+nltk.download('wordnet', quiet=True)
 #python -m spacy download en_core_web_sm
 from nltk.tokenize import sent_tokenize
 from nltk.corpus import stopwords
+from nltk.stem import WordNetLemmatizer
 
 
 
@@ -91,13 +93,13 @@ def data_to_corpus(data_raw, corpus_type='word', remove_stopwords = False):
     #make all lowercase
     data = data.lower()
 
-    stop_words = set(stopwords.words('english'))
     if corpus_type == 'sentence':
         #split into sentences with nltk
         sentences = sent_tokenize(data)
 
         #remove stopwords if specified
         if remove_stopwords:
+            stop_words = set(stopwords.words('english'))
             cleaned_sentences = []
             for sentence in sentences:
                 words = []
@@ -117,6 +119,7 @@ def data_to_corpus(data_raw, corpus_type='word', remove_stopwords = False):
         words = data.split()
         #remove stopwords
         if remove_stopwords:
+            stop_words = set(stopwords.words('english'))
             words = [word for word in words if word not in stop_words] 
         return words
 
@@ -140,6 +143,56 @@ def get_word_counts(corpus):
     else:
       words[entry] = 1
   return words
+
+
+#helper function to process text from dataframe_to_tokens_labels
+def process_text(text, lower_case=True, remove_stopwords=True, lemmatization = False):
+  #remove all special characters and punctuation
+  text = re.sub(r"[^A-Za-z ]", "", text)
+
+  if lower_case == True:
+      text = text.lower()
+
+  #turn into list of words
+  text = text.split()
+
+  if remove_stopwords == True:
+     stop_words = set(stopwords.words('english'))
+     text = [word for word in text if word not in stop_words] 
+
+  if lemmatization == True:
+    lemmatizer = WordNetLemmatizer()
+    text = [lemmatizer.lemmatize(word) for word in text]
+  
+  return text
+     
+#turn a dataframe into preprocessed list of documents with each document containing list of words
+def dataframe_to_tokens_labels(df, text_column_name, label_column_name, lower_case=True, remove_stopwords=True, lemmatization = False):
+  #checking if valid dataframe
+  if type(df) != pd.DataFrame: 
+    raise ValueError("Inputted data is not of type Pandas DataFrame")
+  
+  #checking that columns exist in the dataframe
+  if text_column_name not in df.columns:
+      raise ValueError(f"{text_column_name} is not a valid column in the DataFrame")
+  if label_column_name not in df.columns:
+      raise ValueError(f"{label_column_name} is not a valid column in the DataFrame")
+  
+  #drop missing values in either columns
+  df.dropna(subset=[text_column_name, label_column_name], inplace=True)
+
+  #list to hold all documents
+  document_list = []
+  for document in df[text_column_name]:
+    #process each document
+    document_list.append(process_text(document,lower_case, remove_stopwords, lemmatization))
+
+  #turn column of labels into list
+  label_list = df[label_column_name].to_list()
+
+  #return the two lists, will be in matching order
+  return document_list, label_list
+
 
 
 

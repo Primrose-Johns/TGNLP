@@ -60,23 +60,17 @@ def loadbbc():
 def data_to_corpus(data_raw, corpus_type='word', remove_stopwords = False):
     #Load the data from the acceptable types
     if type(data_raw) == pd.core.series.Series:
-        #print("Series")
         if data_raw.ndim != 1:
           raise ValueError("series must be 1 dimensional")
         temp = list(data_raw)
-        #print(len(temp[0]))
         if not check_type(temp):
           raise ValueError("series must only have elements of type: string")
         data = " ".join(temp)
-        #print(len(data))
-        #print(len(data))
     elif type(data_raw) == list:
-        #print("List")
         if not check_type(data_raw):
             raise ValueError("list must only have elements of type: string")
         data = " ".join(data_raw)
     elif type(data_raw) == str:
-        #print("string")
         data = data_raw
     else:
         raise TypeError(f"Load_data requires one of type: Pandas Series, list of strings, string.\n  given data is of type{type(data_raw)}")
@@ -325,8 +319,6 @@ def generate_sem_edgelist(model, word_corpus, sentence_corpus, word_counts):
 
 #returns a networkx graph representing sequential relationships between words
 #in the provided corpus
-#TODO: Add required size contraints for window_size
-#TODO: Add required size contraints for window_size
 def get_sequential_graph(tgnlp_corpus, window_size=5):
   
   if not isinstance(tgnlp_corpus, Corpus):

@@ -27,17 +27,19 @@ from reportlab.lib.styles import getSampleStyleSheet
 from io import BytesIO
 
 import nltk
-nltk.download('punkt')
+nltk.download('punkt', quiet=True)
+nltk.download('stopwords', quiet=True)
 #python -m spacy download en_core_web_sm
-from nltk.tokenize import sent_tokenize, word_tokenize
+from nltk.tokenize import sent_tokenize
+from nltk.corpus import stopwords
 
 
 
 
 class Corpus:
-  def __init__(self, data):
-    self.sentence_corpus = data_to_corpus(data, 'sentence')
-    self.word_corpus = data_to_corpus(data, 'word')
+  def __init__(self, data, remove_stopwords = False):
+    self.sentence_corpus = data_to_corpus(data, 'sentence', remove_stopwords)
+    self.word_corpus = data_to_corpus(data, 'word', remove_stopwords)
     self.word_counts = get_word_counts(self.word_corpus)
 
 
@@ -53,7 +55,7 @@ def loadbbc():
 
 
 #processes a string (or list/series of strings) for analysis
-def data_to_corpus(data_raw, corpus_type='word'):
+def data_to_corpus(data_raw, corpus_type='word', remove_stopwords = False):
     #Load the data from the acceptable types
     if type(data_raw) == pd.core.series.Series:
         #print("Series")
@@ -62,7 +64,7 @@ def data_to_corpus(data_raw, corpus_type='word'):
         #print(len(temp[0]))
         assert check_type(temp), "series must only have elements of type: string"
         data = " ".join(temp)
-        print(len(data))
+        #print(len(data))
     elif type(data_raw) == list:
         #print("List")
         assert check_type(data_raw), "list must only have elements of type: string."
@@ -89,17 +91,35 @@ def data_to_corpus(data_raw, corpus_type='word'):
     #make all lowercase
     data = data.lower()
 
-
+    stop_words = set(stopwords.words('english'))
     if corpus_type == 'sentence':
         #split into sentences with nltk
         sentences = sent_tokenize(data)
 
-        #remove "." from all sentences
-        sentences = [re.sub("[^A-Za-z ]", "",sentence) for sentence in sentences]   
+        #remove stopwords if specified
+        if remove_stopwords:
+            cleaned_sentences = []
+            for sentence in sentences:
+                words = []
+                #go through each word
+                for word in sentence.split():
+                    if word not in stop_words:
+                        words.append(word)
+                cleaned_sentence = ' '.join(words)
+                cleaned_sentences.append(cleaned_sentence)
+            #remove "." from all sentences
+            sentences = [re.sub("[^A-Za-z ]", "",sentence) for sentence in cleaned_sentences]   
+        else:
+           sentences = [re.sub("[^A-Za-z ]", "",sentence) for sentence in sentences]   
         return sentences
-    elif corpus_type == 'word':    
-        return data.split(' ')
-    
+    elif corpus_type == 'word':
+        #split into list of words
+        words = data.split()
+        #remove stopwords
+        if remove_stopwords:
+            words = [word for word in words if word not in stop_words] 
+        return words
+
     
 
 #due to how this function is used, it assumes what is passed to it is a list
@@ -120,6 +140,7 @@ def get_word_counts(corpus):
     else:
       words[entry] = 1
   return words
+
 
 
 
@@ -244,6 +265,7 @@ def generate_sem_edgelist(model, word_corpus, sentence_corpus, word_counts):
 
 #returns a networkx graph representing sequential relationships between words
 #in the provided corpus
+#TODO: Add required size contraints for window_size
 def get_sequential_graph(tgnlp_corpus, window_size=5):
   
   assert type(tgnlp_corpus) == Corpus, "Inputted data is not of type Corpus"  
@@ -551,4 +573,3 @@ def generate_metrics(G):
   metrics_dict["degree_count"] = degree_count
 
   return metrics_dict
-

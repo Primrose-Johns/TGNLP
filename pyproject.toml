@@ -1,0 +1,37 @@
+[build-system]
+requires = ["setuptools"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "TGNLP"
+version = "0.0.1"
+authors = [
+  { name="Jesse Coulson",   email="jesseccoulson@gmail.com" },
+  { name="Primrose Johns",  email= "primrose.johns.1@gmail.com"}
+]
+description = "A text analysis/feature generation tool for english text, or text corpuses"
+readme = "README.md"
+requires-python = ">=3.9.2"
+classifiers = [
+    "Programming Language :: Python :: 3",
+    #"License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+]
+
+#package dependencies
+dependencies = [
+  "pandas",
+  "networkx",
+  "gensim",
+  "scipy == 1.10.1",
+  "matplotlib",
+  "scikit-learn",
+  "numpy",
+  "spacy",
+  "reportlab",
+  "nltk",
+]
+
+[project.urls]
+Homepage =  "https://github.com/Primrose-Johns/TGNLP"
+#Issues =    "https://github.com/pypa/sampleproject/issues"

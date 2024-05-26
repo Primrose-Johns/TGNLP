@@ -10,14 +10,17 @@ import gensim.downloader
 import itertools
 import timeit
 import matplotlib.pyplot as plt
+import re
 from itertools import combinations
 from copy import deepcopy
 from sklearn.preprocessing import MinMaxScaler
 import numpy as np
-from collections import defaultdict, Counter
+from collections import defaultdict
 import spacy
 from spacy.tokens import Doc
+import matplotlib.pyplot as plt
 from reportlab.lib.pagesizes import letter
+from collections import Counter
 from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer, Image
 from reportlab.lib import colors
 from reportlab.lib.styles import getSampleStyleSheet
@@ -27,18 +30,20 @@ import nltk
 nltk.download('punkt', quiet=True)
 nltk.download('stopwords', quiet=True)
 nltk.download('wordnet', quiet=True)
+nltk.download('averaged_perceptron_tagger', quiet=True)
 #python -m spacy download en_core_web_sm
 from nltk.tokenize import sent_tokenize
 from nltk.corpus import stopwords
 from nltk.stem import WordNetLemmatizer
+from nltk import pos_tag
 
 
 
 
 class Corpus:
-  def __init__(self, data, remove_stopwords = False):
-    self.sentence_corpus = data_to_corpus(data, 'sentence', remove_stopwords)
-    self.word_corpus = data_to_corpus(data, 'word', remove_stopwords)
+  def __init__(self, data, lower_case = True, remove_stopwords = False, lemmatization = False):
+    self.sentence_corpus = data_to_corpus(data, 'sentence', lower_case, remove_stopwords, lemmatization)
+    self.word_corpus = data_to_corpus(data, 'word', lower_case, remove_stopwords, lemmatization)
     self.word_counts = get_word_counts(self.word_corpus)
 
 
@@ -53,8 +58,26 @@ def loadbbc():
     return df["data"]
 
 
+def check_list_of_lists_of_tokens(data):
+    if isinstance(data, list):  
+        for document in data:
+            #check each item in big list is a list
+            if isinstance(document, list):
+                #check all words in inner list are strings  
+                if all(isinstance(word, str) for word in document):
+                    continue  
+                return False 
+            #not a list of lists
+            else:
+               return False
+        #true if it is a list of list of strings
+        return True  
+    #false if outer structure is not a list
+    return False 
+
+
 #processes a string (or list/series of strings) for analysis
-def data_to_corpus(data_raw, corpus_type='word', remove_stopwords = False):
+def data_to_corpus(data_raw, corpus_type='word', lower_case=True, remove_stopwords = False, lemmatization = False):
     #Load the data from the acceptable types
     if type(data_raw) == pd.core.series.Series:
         if data_raw.ndim != 1:
@@ -63,6 +86,15 @@ def data_to_corpus(data_raw, corpus_type='word', remove_stopwords = False):
         if not check_type(temp):
           raise ValueError("series must only have elements of type: string")
         data = " ".join(temp)
+    elif check_list_of_lists_of_tokens(data_raw) == True:
+       if corpus_type == "sentence":
+          #adding . to seperate documents
+          temp_list = [" ".join(document) + "." for document in data_raw]
+          data = " ".join(temp_list)
+       else:
+          #turn into string
+          temp_list = [" ".join(document) for document in data_raw]
+          data = " ".join(temp_list)
     elif type(data_raw) == list:
         if not check_type(data_raw):
             raise ValueError("list must only have elements of type: string")
@@ -70,8 +102,12 @@ def data_to_corpus(data_raw, corpus_type='word', remove_stopwords = False):
     elif type(data_raw) == str:
         data = data_raw
     else:
-        raise TypeError(f"Load_data requires one of type: Pandas Series, list of strings, string.\n  given data is of type{type(data_raw)}")
-    #clean the data
+        raise TypeError(f"Load_data requires one of type: Pandas Series, list of strings, list of list of tokens, string.\n  given data is of type{type(data_raw)}")
+
+    
+    #remove html tags
+    data = re.sub(r"<.*?>", "", data)
+
     #remove numbers/anything with a number in it
     data = re.sub(r"\S+\d\S+", "", data)
 
@@ -85,39 +121,54 @@ def data_to_corpus(data_raw, corpus_type='word', remove_stopwords = False):
 
     #remove padding
     data = re.sub(r"\s+", " ", data).strip()
-    #make all lowercase
-    data = data.lower()
 
+    #make all lowercase if specified
+    if lower_case == True:
+      data = data.lower()
+
+    if lemmatization == True:
+       #need to create dict to identify tags given by nltk pos_tag function
+       pos_dict = {"J": nltk.corpus.wordnet.ADJ,
+                  "N": nltk.corpus.wordnet.NOUN,
+                  "V": nltk.corpus.wordnet.VERB,
+                  "R": nltk.corpus.wordnet.ADV}
     if corpus_type == 'sentence':
-        #split into sentences with nltk
         sentences = sent_tokenize(data)
-
-        #remove stopwords if specified
-        if remove_stopwords:
+        #check if need to remove stopwords or lemmatize
+        if remove_stopwords == True or lemmatization == True:
             stop_words = set(stopwords.words('english'))
             cleaned_sentences = []
+            #set lemmatizer here so it doesn't have to reinstatiate per sentence
+            lemmatizer = None
+            if lemmatization == True:
+               lemmatizer = WordNetLemmatizer()
+            #for each sentence remove stopwords/lemmatize if necissary
             for sentence in sentences:
-                words = []
-                #go through each word
-                for word in sentence.split():
-                    if word not in stop_words:
-                        words.append(word)
+                words = sentence.split()
+                if remove_stopwords== True:
+                    words = [word for word in words if word not in stop_words]
+                if lemmatization == True:
+                    tagged_words = pos_tag(words)
+                    words = [lemmatizer.lemmatize(word,pos_dict.get(tag[0], 'n')) for word, tag in tagged_words]
                 cleaned_sentence = ' '.join(words)
                 cleaned_sentences.append(cleaned_sentence)
-            #remove "." from all sentences
-            sentences = [re.sub("[^A-Za-z ]", "",sentence) for sentence in cleaned_sentences]   
+            return [re.sub("[^A-Za-z ]", "", sentence) for sentence in cleaned_sentences]
         else:
-           sentences = [re.sub("[^A-Za-z ]", "",sentence) for sentence in sentences]   
-        return sentences
+            return [re.sub("[^A-Za-z ]", "", sentence) for sentence in sentences]
     elif corpus_type == 'word':
         #split into list of words
         words = data.split()
         #remove stopwords
-        if remove_stopwords:
+        if remove_stopwords == True:
             stop_words = set(stopwords.words('english'))
-            words = [word for word in words if word not in stop_words] 
+            words = [word for word in words if word not in stop_words]
+        #lemmatize
+        if lemmatization == True:
+            lemmatizer = WordNetLemmatizer()
+            tagged_words = pos_tag(words)
+            #if word is unknown default to noun tag
+            words = [lemmatizer.lemmatize(word,pos_dict.get(tag[0], 'n')) for word, tag in tagged_words]
         return words
-
     
 
 #due to how this function is used, it assumes what is passed to it is a list
@@ -143,6 +194,9 @@ def get_word_counts(corpus):
 
 #helper function to process text from dataframe_to_tokens_labels
 def process_text(text, lower_case=True, remove_stopwords=True, lemmatization = False):
+  #remove html tags
+  text = re.sub(r"<.*?>", "", text)
+  
   #remove all special characters and punctuation
   text = re.sub(r"[^A-Za-z ]", "", text)
 
@@ -157,8 +211,13 @@ def process_text(text, lower_case=True, remove_stopwords=True, lemmatization = F
      text = [word for word in text if word not in stop_words] 
 
   if lemmatization == True:
+    pos_dict = {"J": nltk.corpus.wordnet.ADJ,
+          "N": nltk.corpus.wordnet.NOUN,
+          "V": nltk.corpus.wordnet.VERB,
+          "R": nltk.corpus.wordnet.ADV}
     lemmatizer = WordNetLemmatizer()
-    text = [lemmatizer.lemmatize(word) for word in text]
+    tagged_words = pos_tag(text)
+    text= [lemmatizer.lemmatize(word,pos_dict.get(tag[0], 'n')) for word, tag in tagged_words]
   
   return text
      

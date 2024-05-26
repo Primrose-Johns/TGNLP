@@ -7,3 +7,5 @@ test.py
 prim_test.py
 *.pyc
 *.pdf
+build/
+TGNLP.egg-info/

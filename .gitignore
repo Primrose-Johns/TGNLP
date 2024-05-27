@@ -9,3 +9,5 @@ prim_test.py
 *.pdf
 build/
 TGNLP.egg-info/
+*.whl
+*.gz

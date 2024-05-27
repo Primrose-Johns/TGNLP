@@ -149,7 +149,7 @@ def data_to_corpus(data_raw, corpus_type='word', lower_case=True, remove_stopwor
                     words = [word for word in words if word not in stop_words]
                 if lemmatization == True:
                     tagged_words = pos_tag(words)
-                    words = [lemmatizer.lemmatize(word,pos_dict.get(tag[0], 'n')) for word, tag in tagged_words]
+                    words = [lemmatizer.lemmatize(word, pos_dict.get(tag[0])) if pos_dict.get(tag[0]) else word for word, tag in tagged_words]
                 cleaned_sentence = ' '.join(words)
                 cleaned_sentences.append(cleaned_sentence)
             return [re.sub("[^A-Za-z ]", "", sentence) for sentence in cleaned_sentences]
@@ -167,7 +167,7 @@ def data_to_corpus(data_raw, corpus_type='word', lower_case=True, remove_stopwor
             lemmatizer = WordNetLemmatizer()
             tagged_words = pos_tag(words)
             #if word is unknown default to noun tag
-            words = [lemmatizer.lemmatize(word,pos_dict.get(tag[0], 'n')) for word, tag in tagged_words]
+            words = [lemmatizer.lemmatize(word, pos_dict.get(tag[0])) if pos_dict.get(tag[0]) else word for word, tag in tagged_words]
         return words
     
 
@@ -217,7 +217,7 @@ def process_text(text, lower_case=True, remove_stopwords=True, lemmatization = F
           "R": nltk.corpus.wordnet.ADV}
     lemmatizer = WordNetLemmatizer()
     tagged_words = pos_tag(text)
-    text= [lemmatizer.lemmatize(word,pos_dict.get(tag[0], 'n')) for word, tag in tagged_words]
+    text = [lemmatizer.lemmatize(word, pos_dict.get(tag[0])) if pos_dict.get(tag[0]) else word for word, tag in tagged_words]
   
   return text
      

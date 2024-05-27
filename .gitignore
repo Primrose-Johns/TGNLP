@@ -8,6 +8,7 @@ prim_test.py
 *.pyc
 *.pdf
 build/
+dist/
 TGNLP.egg-info/
 *.whl
 *.gz

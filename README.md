@@ -11,6 +11,14 @@ Our work was originally inspired by <a href="https://github.com/THUMLP/TensorGCN
 
 <!-- START OF QUICK-START GUIDE -->
 <h2>Quick Start Guide</h2>
+<h3>Installation</h3>
+
+You can install this library with Pypi, just run
+```python
+pip3 install TGNLP
+```
+to get the latest version!
+
 <h3>Making a Corpus</h3>
 
 To start, you'll need to build a `TGNLP.Corpus` object, which is what all graph generators take as input. The Corpus can be built from a Pandas Series of strings, a list of strings, or just one large string. A user can also provide a tokenized corpus as a list of lists of strings.

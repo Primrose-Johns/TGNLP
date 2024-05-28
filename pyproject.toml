@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "TGNLP"
-version = "0.0.1"
+version = "1.0.0"
 authors = [
   { name="Jesse Coulson",   email="jesseccoulson@gmail.com" },
   { name="Primrose Johns",  email= "primrose.johns.1@gmail.com"}
@@ -16,7 +16,7 @@ classifiers = [
     "Programming Language :: Python :: 3",
     "License :: OSI Approved :: MIT License",
     "Operating System :: OS Independent",
-    "Development Status :: 5 - Stable",
+    "Development Status :: 5 - Production/Stable",
 ]
 
 #package dependencies

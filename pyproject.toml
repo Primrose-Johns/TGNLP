@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "TGNLP"
-version = "1.0.0"
+version = "1.0.1"
 authors = [
   { name="Jesse Coulson",   email="jesseccoulson@gmail.com" },
   { name="Primrose Johns",  email= "primrose.johns.1@gmail.com"}

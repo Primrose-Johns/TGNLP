@@ -1,26 +1,19 @@
-import os
-import pickle
-import string
 import pandas as pd
-import re
 import networkx as nx
 from gensim.models import Word2Vec
 import gensim
 import gensim.downloader
-import itertools
-import timeit
 import matplotlib.pyplot as plt
 import re
 from itertools import combinations
 from copy import deepcopy
 from sklearn.preprocessing import MinMaxScaler
 import numpy as np
-from collections import defaultdict
+from collections import defaultdict, Counter
 import spacy
 from spacy.tokens import Doc
 import matplotlib.pyplot as plt
 from reportlab.lib.pagesizes import letter
-from collections import Counter
 from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer, Image
 from reportlab.lib import colors
 from reportlab.lib.styles import getSampleStyleSheet

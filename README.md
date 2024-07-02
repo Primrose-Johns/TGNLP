@@ -6,7 +6,8 @@ Primrose Johns: <a href="https://www.linkedin.com/in/primrose-johns-4b957b15a/">
 
 <!-- START OF INTRODUCTION -->
 <h2>Introduction</h2>
-This library allows users to create graphs that represent multiple kinds of word relationships in a provided corpus in Python3. Outputs are NetworkX graphs, allowing the user to use their powerful library to further investigate graph output. We also provide some functions of our own that produce subgraphs and metrics that tell the user more about a particular graph.<br>
+
+This library allows users to create graphs that represent multiple kinds of word relationships in a provided corpus in Python3. Outputs are NetworkX graphs, allowing the user to use their powerful library to further investigate graph output. We also provide some functions of our own that produce subgraphs and metrics that tell the user more about a particular graph. For more detailed explanations refer to`TGNLP_project_report.pdf`.<br>
 Our work was originally inspired by <a href="https://github.com/THUMLP/TensorGCN">TensorGCN</a>.
 
 <!-- START OF QUICK-START GUIDE -->
@@ -54,16 +55,29 @@ This is done by trimming a percentage of the total edgeweight and <i>not</i> by 
 
 <h3>Graph Analysis</h3>
 
-You can get a PDF report summarizing some of the important metrics about your corpus using `generate_graph_report()`, with your graph as input. It will appear in the directory the script is called from with the name `tgnlp_report.pdf`.
+You can get a PDF report summarizing some of the important metrics about your corpus using `generate_graph_report()`, with your graph as input. It will appear in the directory the script is called from with the name `tgnlp_report.pdf`. The report is two pages long.
 ```python
 #This will show up in the directory the python script is called from 
 tgnlp.generate_graph_report(G)
 ```
-The report is a two pages long, here's an example of one of our word subgraphs<br>
+**Example of report word subgraph**<br>
 <p align="center">
-<img src="Example_Report.png" style="width: 55vw">
+<img src="example_images/word_subgraph_example.png" style="width: 55vw">
 </p>
-The report also features visualizations of linear and logarithmic degree distributions, as well as overall graph metrics like average degree, and specific details on the highest-degree and lowest-degree nodes in the graph.<br><br><br><br>
+The report also features visualizations of linear and logarithmic degree distributions, as well as overall graph metrics like average degree, and specific details on the highest-degree and lowest-degree nodes in the graph.
+<br><br>
+
+**Example of report degree distribution**<br>
+<p align="center">
+<img src="example_images/log_degree_dist.png" style="width: 55vw">
+</p>
+<br>
+<h2>Example Machine Learning Use Case</h2>
+The TGNLP library can be used for more than just corpus analysis; it can serve as an effective preprocessing step for machine learning. For an example use case, Primrose has created a project walkthrough demonstrating how TGNLP can be used in the creation of predictive models.
+<br><br>
+<p>Check out the GitHub Repository: <a href="https://github.com/Primrose-Johns/tgnlp-ml-demo">TGNLP Machine Learning Demo</a>.</p>
+<br><br>
+
 
 <!-- START OF DOCUMENTATION -->
 

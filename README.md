@@ -62,7 +62,7 @@ tgnlp.generate_graph_report(G)
 ```
 **Example of report word subgraph**<br>
 <p align="center">
-<img src="example_images/word_subgraph_example.png" style="width: 55vw">
+<img src="example_images/word_subgraph_example2.png" style="width: 55vw">
 </p>
 The report also features visualizations of linear and logarithmic degree distributions, as well as overall graph metrics like average degree, and specific details on the highest-degree and lowest-degree nodes in the graph.
 <br><br>
